@@ -5,9 +5,13 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.provider.Settings
+import android.view.Gravity
+import android.view.WindowManager
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
@@ -71,6 +75,8 @@ class MusicPlaybackService : LifecycleService() {
     private var webView: WebView? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private lateinit var mediaSession: MediaSessionCompat
+    private var windowManager: WindowManager? = null
+    private var attachedToWindow = false
 
     override fun onCreate() {
         super.onCreate()
@@ -129,10 +135,69 @@ class MusicPlaybackService : LifecycleService() {
                 }
                 webChromeClient = WebChromeClient()
             }
+            attachOverlayIfPossible()
         }
         if (!url.isNullOrBlank()) {
             webView?.loadUrl(url)
         }
+    }
+
+    /**
+     * Root cause fix: a WebView that is never attached to any real window is
+     * treated by Chromium as a hidden/background page (Page Visibility API),
+     * and the YouTube web player auto-pauses video on such pages - which is
+     * why audio previously died the moment the app left the foreground.
+     *
+     * Here we attach the (1x1, invisible, non-touchable) WebView to a real
+     * system window via WindowManager, so the page is considered visible and
+     * keeps playing even while MainActivity itself is backgrounded.
+     *
+     * Requires "Display over other apps" (SYSTEM_ALERT_WINDOW) permission.
+     * If not granted, we fall back silently to the old (less reliable)
+     * behaviour instead of crashing.
+     */
+    private fun attachOverlayIfPossible() {
+        if (attachedToWindow) return
+        if (!Settings.canDrawOverlays(this)) {
+            Log.w(TAG, "Overlay permission not granted - falling back to detached WebView (audio may pause in background)")
+            return
+        }
+        try {
+            windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+            val overlayType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+            val params = WindowManager.LayoutParams(
+                1, 1,
+                overlayType,
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = 0
+                y = 0
+            }
+            windowManager?.addView(webView, params)
+            attachedToWindow = true
+            Log.d(TAG, "WebView attached to overlay window - page will be treated as visible")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to attach overlay window, continuing without it", e)
+        }
+    }
+
+    private fun detachOverlay() {
+        if (!attachedToWindow) return
+        try {
+            webView?.let { windowManager?.removeView(it) }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error removing overlay window", e)
+        }
+        attachedToWindow = false
     }
 
     private fun runJs(js: String) {
@@ -213,6 +278,7 @@ class MusicPlaybackService : LifecycleService() {
     private fun stopSelfAndCleanup() {
         Log.d(TAG, "stopSelfAndCleanup")
         releaseWakeLock()
+        detachOverlay()
         webView?.destroy()
         webView = null
         mediaSession.isActive = false
@@ -224,6 +290,7 @@ class MusicPlaybackService : LifecycleService() {
     override fun onDestroy() {
         Log.d(TAG, "onDestroy")
         releaseWakeLock()
+        detachOverlay()
         webView?.destroy()
         mediaSession.release()
         super.onDestroy()

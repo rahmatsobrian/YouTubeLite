@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <!-- Android 13+ (API 33) requires runtime permission for notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Dipakai agar WebView headless bisa "menempel" ke sebuah window nyata
+         (overlay 1x1 tak terlihat), sehingga Chromium/YouTube menganggap
+         halaman tetap visible dan tidak auto-pause video saat app diminimize. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".YtLiteApp"

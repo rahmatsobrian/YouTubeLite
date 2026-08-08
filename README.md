@@ -39,6 +39,24 @@ terbaru (16+).
    `ic_launcher_foreground.xml` / `ic_launcher_background.xml` sesuai brand
    kamu.
 
+## Troubleshooting: musik & notifikasi hilang saat app diminimize
+
+Ada 2 penyebab paling umum:
+
+1. **Izin "Tampil di atas app lain" (overlay) belum diberikan.** Root cause:
+   `WebView` yang tidak menempel ke window manapun dianggap Chromium sebagai
+   halaman *hidden*, dan YouTube auto-pause video di halaman hidden — App
+   ini sekarang otomatis meminta izin overlay saat pertama kali menekan
+   "Putar di Latar Belakang" (lihat `MainActivity.startBackgroundPlayback()`),
+   lalu `MusicPlaybackService` men-attach WebView tersebut sebagai overlay
+   1x1 tak terlihat via `WindowManager` supaya halaman tetap dianggap
+   visible. **Wajib di-allow**, kalau ditolak, playback tetap bisa berhenti
+   sendiri saat app diminimize.
+2. **Battery optimization OEM (Xiaomi/Oppo/Vivo/Samsung dll).** OS-OS ini
+   sering membunuh foreground service walau sudah benar secara API. Set:
+   Settings → Apps → YouTube Lite → Battery → **Unrestricted**, dan aktifkan
+   izin Autostart bila ada.
+
 ## Build lokal
 
 ```bash

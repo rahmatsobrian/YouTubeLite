@@ -1,10 +1,14 @@
 package com.rolex.ytlite
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -105,6 +109,25 @@ class MainActivity : ComponentActivity() {
 
     private fun startBackgroundPlayback() {
         val url = currentWebView?.url ?: return
+
+        if (!Settings.canDrawOverlays(this)) {
+            // Required so the background WebView stays attached to a real
+            // window (see MusicPlaybackService) - without this, most OEMs /
+            // Chromium will pause the video the moment the app is minimized.
+            Toast.makeText(
+                this,
+                "Izinkan \"Tampil di atas app lain\" agar musik tidak berhenti saat app diminimize",
+                Toast.LENGTH_LONG
+            ).show()
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                )
+            )
+            return
+        }
+
         MusicPlaybackService.start(this, url)
     }
 
