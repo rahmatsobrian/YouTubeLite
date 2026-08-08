@@ -72,7 +72,18 @@ jobs:
         continue-on-error: true
 
       - name: Build Debug APK (verbose logging enabled)
-        run: ./gradlew assembleDebug --stacktrace --info --warning-mode all
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --info --warning-mode all 2>&1 | tee build-console.log
+
+      - name: Upload full console log (always, even on failure)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-console-log
+          path: build-console.log
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Upload build logs (for debugging)
         if: always()
