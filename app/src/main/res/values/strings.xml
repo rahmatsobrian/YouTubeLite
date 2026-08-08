@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">YouTube Lite</string>
+    <string name="btn_back">Kembali</string>
+    <string name="btn_forward">Maju</string>
+    <string name="btn_home">Beranda</string>
+    <string name="btn_reload">Muat ulang</string>
+</resources>
