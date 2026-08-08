@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.rolex.ytlite.util.FileLogger
 
 class YtLiteApp : Application() {
 
@@ -13,6 +14,8 @@ class YtLiteApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        FileLogger.installCrashLogger(this)
+        FileLogger.log(this, "YtLiteApp", "App process started")
         createNotificationChannel()
     }
 

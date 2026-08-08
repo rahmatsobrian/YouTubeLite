@@ -1,5 +1,6 @@
 package com.rolex.ytlite.util
 
+import android.content.Context
 import android.webkit.JavascriptInterface
 
 /**
@@ -10,12 +11,18 @@ import android.webkit.JavascriptInterface
  * (MediaSession, notification, Compose UI) always mirrors what's actually
  * playing inside the WebView - this is what keeps lock-screen controls and
  * the in-app UI in sync with playback.
+ *
+ * [loggerContext] is optional and only used to also mirror state changes to
+ * [FileLogger] for on-device debugging (no context = logging skipped).
  */
-class JsBridge {
+class JsBridge(private val loggerContext: Context? = null) {
 
     @JavascriptInterface
     fun onStateChanged(title: String, isPlaying: Boolean) {
         PlaybackState.update(title = title, isPlaying = isPlaying)
+        loggerContext?.let {
+            FileLogger.log(it, "JsBridge", "JS reported: playing=$isPlaying title=$title")
+        }
     }
 
     companion object {

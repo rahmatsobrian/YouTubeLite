@@ -26,6 +26,7 @@ import androidx.media.session.MediaButtonReceiver
 import com.rolex.ytlite.MainActivity
 import com.rolex.ytlite.R
 import com.rolex.ytlite.YtLiteApp
+import com.rolex.ytlite.util.FileLogger
 import com.rolex.ytlite.util.JsBridge
 import com.rolex.ytlite.util.PlaybackState
 import kotlinx.coroutines.launch
@@ -81,6 +82,7 @@ class MusicPlaybackService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate")
+        FileLogger.log(this, TAG, "onCreate - service process started")
 
         mediaSession = MediaSessionCompat(this, TAG).apply {
             setCallback(object : MediaSessionCompat.Callback() {
@@ -93,6 +95,7 @@ class MusicPlaybackService : LifecycleService() {
 
         lifecycleScope.launch {
             PlaybackState.info.collect { info ->
+                FileLogger.log(this@MusicPlaybackService, TAG, "PlaybackState changed: playing=${info.isPlaying} title=${info.title}")
                 updatePlaybackState(info.isPlaying)
                 updateNotification(info.title, info.isPlaying)
             }
@@ -102,6 +105,7 @@ class MusicPlaybackService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         Log.d(TAG, "onStartCommand action=${intent?.action}")
+        FileLogger.log(this, TAG, "onStartCommand action=${intent?.action} startId=$startId")
 
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
@@ -125,7 +129,7 @@ class MusicPlaybackService : LifecycleService() {
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.mediaPlaybackRequiresUserGesture = false
-                addJavascriptInterface(JsBridge(), "YtLiteBridge")
+                addJavascriptInterface(JsBridge(applicationContext), "YtLiteBridge")
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView, finishedUrl: String?) {
                         super.onPageFinished(view, finishedUrl)
@@ -185,8 +189,10 @@ class MusicPlaybackService : LifecycleService() {
             windowManager?.addView(webView, params)
             attachedToWindow = true
             Log.d(TAG, "WebView attached to overlay window - page will be treated as visible")
+            FileLogger.log(this, TAG, "Overlay attach SUCCESS")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to attach overlay window, continuing without it", e)
+            FileLogger.log(this, TAG, "Overlay attach FAILED: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
@@ -289,11 +295,24 @@ class MusicPlaybackService : LifecycleService() {
 
     override fun onDestroy() {
         Log.d(TAG, "onDestroy")
+        FileLogger.log(this, TAG, "onDestroy called - service is being torn down")
         releaseWakeLock()
         detachOverlay()
         webView?.destroy()
         mediaSession.release()
         super.onDestroy()
+    }
+
+    /**
+     * Called by the system when the user removes the app's task (e.g. swipes
+     * it away from Recents). Logged explicitly so we can distinguish "user
+     * swiped the app away" from "OS silently killed the process" when
+     * reading the log file - by default we deliberately do NOT stop the
+     * service here, since background playback should survive task removal.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        FileLogger.log(this, TAG, "onTaskRemoved - task removed from Recents (playback keeps running)")
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onBind(intent: Intent): IBinder? {

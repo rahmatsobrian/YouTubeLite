@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
@@ -38,6 +39,9 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.rolex.ytlite.service.MusicPlaybackService
 import com.rolex.ytlite.ui.YoutubeWebView
 import com.rolex.ytlite.ui.theme.YoutubeLiteTheme
+import com.rolex.ytlite.util.FileLogger
+import androidx.core.content.FileProvider
+import java.io.File
 
 class MainActivity : ComponentActivity() {
 
@@ -95,6 +99,12 @@ class MainActivity : ComponentActivity() {
                         icon = { Icon(Icons.Filled.PlayArrow, contentDescription = stringRes(R.string.btn_background_play)) },
                         label = { Text(stringRes(R.string.btn_background_play)) }
                     )
+                    NavigationBarItem(
+                        selected = false,
+                        onClick = { shareDebugLog() },
+                        icon = { Icon(Icons.Filled.BugReport, contentDescription = "Bagikan Log") },
+                        label = { Text("Log") }
+                    )
                 }
             }
         ) { padding: PaddingValues ->
@@ -133,6 +143,22 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun stringRes(id: Int): String = androidx.compose.ui.res.stringResource(id)
+
+    private fun shareDebugLog() {
+        val path = FileLogger.logFilePath(this)
+        val file = File(path)
+        if (!file.exists()) {
+            Toast.makeText(this, "Belum ada log tercatat - coba dulu putar musik di background", Toast.LENGTH_LONG).show()
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(shareIntent, "Bagikan log debug"))
+    }
 
     override fun onDestroy() {
         // Note: we deliberately do NOT stop MusicPlaybackService here - that's
