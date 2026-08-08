@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">YouTube Lite</string>
+    <string name="notif_channel_name">Pemutaran Musik</string>
+    <string name="notif_channel_desc">Notifikasi kontrol pemutaran musik di latar belakang</string>
+    <string name="action_play">Putar</string>
+    <string name="action_pause">Jeda</string>
+    <string name="action_stop">Berhenti</string>
+    <string name="loading">Memuat…</string>
+    <string name="btn_background_play">Putar di Latar Belakang</string>
+    <string name="btn_home">Beranda</string>
+</resources>
